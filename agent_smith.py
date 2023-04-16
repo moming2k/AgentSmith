@@ -6,6 +6,7 @@ import sys
 import json
 from termcolor import cprint
 
+
 def run_script(script_name, script_args):
     script_args = [str(arg) for arg in script_args]
     try:
@@ -16,6 +17,7 @@ def run_script(script_name, script_args):
         return e.output.decode("utf-8"), e.returncode
     return result.decode("utf-8"), 0
 
+
 def run_black(script_name):
     try:
         result = subprocess.check_output(
@@ -24,6 +26,7 @@ def run_black(script_name):
     except subprocess.CalledProcessError as e:
         return e.output.decode("utf-8"), e.returncode
     return result.decode("utf-8"), 0
+
 
 def run_flake8(script_name):
     try:
@@ -34,8 +37,11 @@ def run_flake8(script_name):
         return e.output.decode("utf-8"), e.returncode
     return result.decode("utf-8"), 0
 
+
 # function for sending request to OpenAI API
-def send_request(prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty):
+def send_request(
+    prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty
+):
     # print(f"Sending request to OpenAI API..., prompt: {prompt}")
     response = openai.ChatCompletion.create(
         model=model,
@@ -49,35 +55,51 @@ def send_request(prompt, model, max_tokens, temperature, top_p, frequency_penalt
     )
     return response
 
+
 # function for formatting the response
 def format_response(response):
     return response.choices[0].message.content.strip()
 
+
 # function for getting the response
-def get_response(prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty):
-    response = send_request(prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty)
+def get_response(
+    prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty
+):
+    response = send_request(
+        prompt,
+        model,
+        max_tokens,
+        temperature,
+        top_p,
+        frequency_penalty,
+        presence_penalty,
+    )
     return format_response(response)
 
+
 def load_lint_fix_initial_prompt():
-    with open('./prompt/lint_fix.txt', 'r') as f:
+    with open("./prompt/lint_fix.txt", "r") as f:
         prompt = f.read()
     # print(f"Loaded prompt: {prompt}")
     return prompt
 
+
 def load_code_fix_initial_prompt():
-    with open('./prompt/code_fix.txt', 'r') as f:
+    with open("./prompt/code_fix.txt", "r") as f:
         prompt = f.read()
     # print(f"Loaded prompt: {prompt}")
     return prompt
+
 
 # read file with lines, and with the line number in front of each line as format of line number: content
 def read_file_with_lines(file_path):
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         lines = f.readlines()
     file_with_lines = ""
     for i, line in enumerate(lines):
         file_with_lines += f"{i+1}: {line}"
     return file_with_lines
+
 
 # function for fix code for errors
 def fix_code_errors(file_path, args, error_message, model):
@@ -85,8 +107,7 @@ def fix_code_errors(file_path, args, error_message, model):
 
     initial_prompt_text = load_code_fix_initial_prompt()
     prompt = (
-        initial_prompt_text +
-        "\n\n"
+        initial_prompt_text + "\n\n"
         "Here is the script that needs fixing:\n\n"
         f"{file_with_lines}\n\n"
         "Here are the arguments it was provided:\n\n"
@@ -99,14 +120,14 @@ def fix_code_errors(file_path, args, error_message, model):
     response = get_response(prompt, model, 100, 0.9, 1, 0, 0)
     return response
 
+
 # function for fix code for linting errors
 def fix_lint_errors(file_path, args, error_message, model):
     file_with_lines = read_file_with_lines(file_path)
 
     initial_prompt_text = load_lint_fix_initial_prompt()
     prompt = (
-        initial_prompt_text +
-        "\n\n"
+        initial_prompt_text + "\n\n"
         "Here is the script that needs fixing:\n\n"
         f"{file_with_lines}\n\n"
         "Here are the arguments it was provided:\n\n"
@@ -119,6 +140,7 @@ def fix_lint_errors(file_path, args, error_message, model):
     response = get_response(prompt, model, 100, 0.9, 1, 0, 0)
     return response
 
+
 def apply_changes(file_path, changes_json):
     # Read the original file lines
     with open(file_path, "r") as f:
@@ -130,7 +152,9 @@ def apply_changes(file_path, changes_json):
 
     # Extract the operation changes and explanations
     op_changes = [change for change in changes if "operation" in change]
-    explanations = [change["explanation"] for change in changes if "explanation" in change]
+    explanations = [
+        change["explanation"] for change in changes if "explanation" in change
+    ]
 
     # Sort the operation changes in reverse line order
     op_changes.sort(key=lambda x: x["line"], reverse=True)
@@ -169,6 +193,7 @@ def apply_changes(file_path, changes_json):
         else:
             print(line, end="")
 
+
 def main(script_name, *script_args, model="gpt-4"):
     # print(f"script_name: {script_name}, script_args: {script_args}, model: {model}")
 
@@ -180,7 +205,7 @@ def main(script_name, *script_args, model="gpt-4"):
 
             # run flake8 to check for PEP8 errors
             run_black(script_name)
-            flake8_output, flake8_returncode =  run_flake8(script_name)
+            flake8_output, flake8_returncode = run_flake8(script_name)
 
             if flake8_returncode != 0:
                 print("PEP8 errors:", flake8_output)
@@ -203,13 +228,14 @@ def main(script_name, *script_args, model="gpt-4"):
             print("Output:", output)
 
             json_response = fix_code_errors(
-                    file_path=script_name,
-                    args=script_args,
-                    error_message=output,
-                    model=model,
+                file_path=script_name,
+                args=script_args,
+                error_message=output,
+                model=model,
             )
             apply_changes(script_name, json_response)
             cprint("Changes applied. Rerunning...", "blue")
-    
+
+
 if __name__ == "__main__":
     fire.Fire(main)
