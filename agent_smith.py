@@ -16,6 +16,24 @@ def run_script(script_name, script_args):
         return e.output.decode("utf-8"), e.returncode
     return result.decode("utf-8"), 0
 
+def run_black(script_name):
+    try:
+        result = subprocess.check_output(
+            ["black", script_name], stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as e:
+        return e.output.decode("utf-8"), e.returncode
+    return result.decode("utf-8"), 0
+
+def run_flake8(script_name):
+    try:
+        result = subprocess.check_output(
+            ["flake8", script_name], stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as e:
+        return e.output.decode("utf-8"), e.returncode
+    return result.decode("utf-8"), 0
+
 # function for sending request to OpenAI API
 def send_request(prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty):
     # print(f"Sending request to OpenAI API..., prompt: {prompt}")
@@ -40,6 +58,12 @@ def get_response(prompt, model, max_tokens, temperature, top_p, frequency_penalt
     response = send_request(prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty)
     return format_response(response)
 
+def load_lint_fix_initial_prompt():
+    with open('./prompt/lint_fix.txt', 'r') as f:
+        prompt = f.read()
+    # print(f"Loaded prompt: {prompt}")
+    return prompt
+
 def load_code_fix_initial_prompt():
     with open('./prompt/code_fix.txt', 'r') as f:
         prompt = f.read()
@@ -56,7 +80,7 @@ def read_file_with_lines(file_path):
     return file_with_lines
 
 # function for fix code for errors
-def fix_code_for_errors(file_path, args, error_message, model):
+def fix_code_errors(file_path, args, error_message, model):
     file_with_lines = read_file_with_lines(file_path)
 
     initial_prompt_text = load_code_fix_initial_prompt()
@@ -75,11 +99,32 @@ def fix_code_for_errors(file_path, args, error_message, model):
     response = get_response(prompt, model, 100, 0.9, 1, 0, 0)
     return response
 
+# function for fix code for linting errors
+def fix_lint_errors(file_path, args, error_message, model):
+    file_with_lines = read_file_with_lines(file_path)
+
+    initial_prompt_text = load_lint_fix_initial_prompt()
+    prompt = (
+        initial_prompt_text +
+        "\n\n"
+        "Here is the script that needs fixing:\n\n"
+        f"{file_with_lines}\n\n"
+        "Here are the arguments it was provided:\n\n"
+        f"{args}\n\n"
+        "Here is the flake8 lint error message:\n\n"
+        f"{error_message}\n"
+        "Please provide your suggested changes, and remember to stick to the "
+        "exact format as described above."
+    )
+    response = get_response(prompt, model, 100, 0.9, 1, 0, 0)
+    return response
+
 def apply_changes(file_path, changes_json):
     # Read the original file lines
     with open(file_path, "r") as f:
         orig_lines = f.readlines()
 
+    print(f"Applying changes based on {changes_json}...")
     # Parse the changes from the JSON string
     changes = json.loads(changes_json)
 
@@ -132,13 +177,32 @@ def main(script_name, *script_args, model="gpt-4"):
 
         if returncode == 0:
             cprint("Script ran successfully.", "blue")
+
+            # run flake8 to check for PEP8 errors
+            run_black(script_name)
+            flake8_output, flake8_returncode =  run_flake8(script_name)
+
+            if flake8_returncode != 0:
+                print("PEP8 errors:", flake8_output)
+                json_response = fix_lint_errors(
+                    file_path=script_name,
+                    args=script_args,
+                    error_message=flake8_output,
+                    model=model,
+                )
+                apply_changes(script_name, json_response)
+                cprint("Changes applied. Rerunning...", "blue")
+                continue
+            else:
+                cprint("Script passed lint check", "blue")
+
             print("Output:", output)
             break
         else:
             cprint("Script crashed. Trying to fix...", "blue")
             print("Output:", output)
 
-            json_response = fix_code_for_errors(
+            json_response = fix_code_errors(
                     file_path=script_name,
                     args=script_args,
                     error_message=output,
