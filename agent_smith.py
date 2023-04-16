@@ -11,7 +11,8 @@ def run_script(script_name, script_args):
     script_args = [str(arg) for arg in script_args]
     try:
         result = subprocess.check_output(
-            [sys.executable, script_name, *script_args], stderr=subprocess.STDOUT
+            [sys.executable, script_name] + script_args,
+            stderr=subprocess.STDOUT
         )
     except subprocess.CalledProcessError as e:
         return e.output.decode("utf-8"), e.returncode
@@ -40,7 +41,13 @@ def run_flake8(script_name):
 
 # function for sending request to OpenAI API
 def send_request(
-    prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty
+    prompt,
+    model,
+    max_tokens,
+    temperature,
+    top_p,
+    frequency_penalty,
+    presence_penalty
 ):
     # print(f"Sending request to OpenAI API..., prompt: {prompt}")
     response = openai.ChatCompletion.create(
@@ -63,7 +70,13 @@ def format_response(response):
 
 # function for getting the response
 def get_response(
-    prompt, model, max_tokens, temperature, top_p, frequency_penalty, presence_penalty
+    prompt,
+    model,
+    max_tokens,
+    temperature,
+    top_p,
+    frequency_penalty,
+    presence_penalty
 ):
     response = send_request(
         prompt,
@@ -91,7 +104,8 @@ def load_code_fix_initial_prompt():
     return prompt
 
 
-# read file with lines, and with the line number in front of each line as format of line number: content
+# read file with lines, and with the line number in front of each line as
+# of line number: content
 def read_file_with_lines(file_path):
     with open(file_path, "r") as f:
         lines = f.readlines()
@@ -195,7 +209,6 @@ def apply_changes(file_path, changes_json):
 
 
 def main(script_name, *script_args, model="gpt-4"):
-    # print(f"script_name: {script_name}, script_args: {script_args}, model: {model}")
 
     while True:
         output, returncode = run_script(script_name, script_args)
@@ -204,7 +217,7 @@ def main(script_name, *script_args, model="gpt-4"):
             cprint("Script ran successfully.", "blue")
 
             # run flake8 to check for PEP8 errors
-            run_black(script_name)
+            # run_black(script_name)
             flake8_output, flake8_returncode = run_flake8(script_name)
 
             if flake8_returncode != 0:
