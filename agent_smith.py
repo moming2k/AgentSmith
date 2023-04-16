@@ -12,7 +12,7 @@ def run_script(script_name, script_args):
     try:
         result = subprocess.check_output(
             [sys.executable, script_name] + script_args,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
         return e.output.decode("utf-8"), e.returncode
@@ -22,7 +22,13 @@ def run_script(script_name, script_args):
 def run_black(script_name):
     try:
         result = subprocess.check_output(
-            ["black", script_name], stderr=subprocess.STDOUT
+            [
+                "black",
+                "--experimental-string-processing",
+                "--line-length=80",
+                script_name,
+            ],
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
         return e.output.decode("utf-8"), e.returncode
@@ -47,7 +53,7 @@ def send_request(
     temperature,
     top_p,
     frequency_penalty,
-    presence_penalty
+    presence_penalty,
 ):
     # print(f"Sending request to OpenAI API..., prompt: {prompt}")
     response = openai.ChatCompletion.create(
@@ -76,7 +82,7 @@ def get_response(
     temperature,
     top_p,
     frequency_penalty,
-    presence_penalty
+    presence_penalty,
 ):
     response = send_request(
         prompt,
@@ -121,7 +127,8 @@ def fix_code_errors(file_path, args, error_message, model):
 
     initial_prompt_text = load_code_fix_initial_prompt()
     prompt = (
-        initial_prompt_text + "\n\n"
+        initial_prompt_text
+        + "\n\n"
         "Here is the script that needs fixing:\n\n"
         f"{file_with_lines}\n\n"
         "Here are the arguments it was provided:\n\n"
@@ -141,7 +148,8 @@ def fix_lint_errors(file_path, args, error_message, model):
 
     initial_prompt_text = load_lint_fix_initial_prompt()
     prompt = (
-        initial_prompt_text + "\n\n"
+        initial_prompt_text
+        + "\n\n"
         "Here is the script that needs fixing:\n\n"
         f"{file_with_lines}\n\n"
         "Here are the arguments it was provided:\n\n"
@@ -217,7 +225,7 @@ def main(script_name, *script_args, model="gpt-4"):
             cprint("Script ran successfully.", "blue")
 
             # run flake8 to check for PEP8 errors
-            # run_black(script_name)
+            run_black(script_name)
             flake8_output, flake8_returncode = run_flake8(script_name)
 
             if flake8_returncode != 0:
