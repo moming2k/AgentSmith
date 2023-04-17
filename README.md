@@ -15,7 +15,7 @@ The script uses OpenAI's natural language processing (NLP) capabilities to creat
 
 # Usage
     
-    python agent_smith.py
+    python agent_smith.py buggy_script.py "subtract" 20 3 
 
 
 # Special Thanks
