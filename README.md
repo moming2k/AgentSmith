@@ -6,6 +6,13 @@ This Python script is a example of how to use the GPT-4 model to generate code(T
 
 The script uses OpenAI's natural language processing (NLP) capabilities to create new tasks based on the objective and generate code based on the task. 
 
+# Dependencies
+    pip install black
+    pip install flake8
+
+- Python 3.6+
+- [OpenAI GPT-4](https://openai.com/blog/gpt-4/)
+- Setup OpenAI API key in environment variable `OPENAI_API_KEY`
 
 # Installation
 
